@@ -1,102 +1,141 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
 using UnityEngine.UI;
 
 public class MusicPlayer : MonoBehaviour
 {
-    public AudioClip[] songs;
-    public Text songTitleText;
-    public Slider volumeSlider;
+    public AudioSource audioSource;
+    public List<string> musicFiles = new List<string>();
+    public int currentTrack = 0;
+
     public Button playButton;
+    public Button stopButton;
     public Button nextButton;
     public Button prevButton;
-
-    public AudioSource audioSource;
-    public int currentSongIndex = 0;
-    public bool isPlaying = false;
+    public Button refreshButton;
 
     void Start()
     {
         audioSource = GetComponent<AudioSource>();
-        playButton.onClick.AddListener(PlayButtonOnClick);
-        nextButton.onClick.AddListener(NextButtonOnClick);
-        prevButton.onClick.AddListener(PrevButtonOnClick);
-        volumeSlider.onValueChanged.AddListener(SetVolume);
-        EnablePlayer(false);
-    }
 
-    void Update()
-    {
-        if (!audioSource.isPlaying && isPlaying)
+        // Проверяем наличие папки Music и создаем ее, если она не существует
+        string musicPath = Application.dataPath + "/Music";
+        if (!Directory.Exists(musicPath))
         {
-            currentSongIndex = (currentSongIndex + 1) % songs.Length;
-            PlayCurrentSong();
+            Directory.CreateDirectory(musicPath);
         }
-    }
 
-    void SetVolume(float volume)
-    {
-        audioSource.volume = volume / 100.0f;
-    }
-
-    void PlayButtonOnClick()
-    {
-        if (isPlaying)
+        // Загружаем файлы в папке Music и добавляем их в список музыкальных файлов
+        string[] files = Directory.GetFiles(musicPath, "*.mp3");
+        foreach (string file in files)
         {
-            audioSource.Pause();
-            isPlaying = false;
-            playButton.GetComponentInChildren<Text>().text = "Play";
+            musicFiles.Add(file);
         }
-        else
+
+        files = Directory.GetFiles(musicPath, "*.wav");
+        foreach (string file in files)
         {
-            audioSource.UnPause();
-            isPlaying = true;
-            playButton.GetComponentInChildren<Text>().text = "Pause";
+            musicFiles.Add(file);
         }
-    }
 
-    void NextButtonOnClick()
-    {
-        currentSongIndex = (currentSongIndex + 1) % songs.Length;
-        PlayCurrentSong();
-    }
-
-    void PrevButtonOnClick()
-    {
-        currentSongIndex--;
-        if (currentSongIndex < 0)
+        // Проверяем наличие музыкальных файлов
+        if (musicFiles.Count == 0)
         {
-            currentSongIndex = songs.Length - 1;
+            Debug.LogWarning("No music files found in " + musicPath);
+            return;
         }
-        PlayCurrentSong();
-    }
 
-    void PlayCurrentSong()
-    {
-        audioSource.clip = songs[currentSongIndex];
+        // Воспроизводим первый файл
+        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
         audioSource.Play();
-        songTitleText.text = audioSource.clip.name;
-        isPlaying = true;
-        playButton.GetComponentInChildren<Text>().text = "Pause";
+
+        // Добавляем обработчики событий кнопок
+        playButton.onClick.AddListener(PlayTrack);
+        stopButton.onClick.AddListener(StopTrack);
+        nextButton.onClick.AddListener(NextTrack);
+        prevButton.onClick.AddListener(PrevTrack);
+        refreshButton.onClick.AddListener(RefreshTracks);
     }
-    void EnablePlayer(bool enable)
-{
-    audioSource.enabled = enable;
-    playButton.enabled = enable;
-    nextButton.enabled = enable;
-    prevButton.enabled = enable;
-    volumeSlider.enabled = enable;
+
+    void PlayTrack()
+    {
+        if (!audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
+    }
+
+    void StopTrack()
+    {
+        if (audioSource.isPlaying)
+        {
+            audioSource.Stop();
+        }
+    }
+
+    void NextTrack()
+    {
+        currentTrack++;
+        if (currentTrack >= musicFiles.Count)
+        {
+            currentTrack = 0;
+        }
+
+        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
+        audioSource.Play();
+    }
+
+    void PrevTrack()
+    {
+        currentTrack--;
+        if (currentTrack < 0)
+        {
+            currentTrack = musicFiles.Count - 1;
+        }
+
+        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
+        audioSource.Play();
+    }
+
+    void RefreshTracks()
+    {
+        musicFiles.Clear();
+
+        // Загружаем файлы в папке Music и добавляем их в список музыкальных файлов
+        string musicPath = Application.dataPath + "/Music";
+        string[] files = Directory.GetFiles(musicPath, "*.mp3");
+        foreach (string file in files)
+        {
+            musicFiles.Add(file);
+        }
+
+        files = Directory.GetFiles(musicPath, "*.wav");
+        foreach (string file in files)
+        {
+            musicFiles.Add(file);
+        }
+
+        // Проверяем наличие музыкальных файлов
+            if (musicFiles.Count == 0)
+    {
+        Debug.LogWarning("No music files found in " + musicPath);
+        return;
+    }
+
+    currentTrack = 0;
+    audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
+    audioSource.Play();
 }
 
-public void TogglePlayer()
+AudioClip GetAudioClip(string filePath)
 {
-    if (audioSource.enabled)
-    {
-        audioSource.Stop();
-        EnablePlayer(false);
-    }
-    else
-    {
-        EnablePlayer(true);
-    }
+    // Загружаем аудио-клип из файла
+    string audioPath = "file://" + filePath;
+    WWW audioLoader = new WWW(audioPath);
+    while (!audioLoader.isDone) { }
+
+    return audioLoader.GetAudioClip();
 }
 }
