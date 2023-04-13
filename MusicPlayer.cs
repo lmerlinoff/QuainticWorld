@@ -1,47 +1,44 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class MusicPlayer : MonoBehaviour
 {
-    public AudioSource audioSource;
-    public List<AudioClip> songs;
+    public AudioClip[] songs;
     public Text songTitleText;
     public Slider volumeSlider;
     public Button playButton;
     public Button nextButton;
     public Button prevButton;
 
-    private int currentSongIndex = 0;
-    private bool isPlaying = false;
+    public AudioSource audioSource;
+    public int currentSongIndex = 0;
+    public bool isPlaying = false;
 
     void Start()
     {
-        // Установка начальных значений элементов
-        songTitleText.text = songs[currentSongIndex].name;
-        volumeSlider.value = audioSource.volume;
+        audioSource = GetComponent<AudioSource>();
         playButton.onClick.AddListener(PlayButtonOnClick);
         nextButton.onClick.AddListener(NextButtonOnClick);
         prevButton.onClick.AddListener(PrevButtonOnClick);
+        volumeSlider.onValueChanged.AddListener(SetVolume);
+        EnablePlayer(false);
     }
 
     void Update()
     {
-        if (isPlaying && !audioSource.isPlaying)
+        if (!audioSource.isPlaying && isPlaying)
         {
-            // Автоматически переходить на следующую песню после окончания текущей
-            currentSongIndex = (currentSongIndex + 1) % songs.Count;
+            currentSongIndex = (currentSongIndex + 1) % songs.Length;
             PlayCurrentSong();
         }
     }
 
-    public void SetVolume(float volume)
+    void SetVolume(float volume)
     {
-        audioSource.volume = volume;
+        audioSource.volume = volume / 100.0f;
     }
 
-    public void PlayButtonOnClick()
+    void PlayButtonOnClick()
     {
         if (isPlaying)
         {
@@ -51,50 +48,55 @@ public class MusicPlayer : MonoBehaviour
         }
         else
         {
-            audioSource.Play();
+            audioSource.UnPause();
             isPlaying = true;
             playButton.GetComponentInChildren<Text>().text = "Pause";
         }
     }
 
-    public void NextButtonOnClick()
+    void NextButtonOnClick()
     {
-        currentSongIndex = (currentSongIndex + 1) % songs.Count;
+        currentSongIndex = (currentSongIndex + 1) % songs.Length;
         PlayCurrentSong();
     }
 
-    public void PrevButtonOnClick()
+    void PrevButtonOnClick()
     {
         currentSongIndex--;
         if (currentSongIndex < 0)
         {
-            currentSongIndex = songs.Count - 1;
+            currentSongIndex = songs.Length - 1;
         }
         PlayCurrentSong();
     }
 
-    public void PlayCurrentSong()
+    void PlayCurrentSong()
     {
-        audioSource.Stop();
         audioSource.clip = songs[currentSongIndex];
         audioSource.Play();
+        songTitleText.text = audioSource.clip.name;
         isPlaying = true;
         playButton.GetComponentInChildren<Text>().text = "Pause";
-        songTitleText.text = songs[currentSongIndex].name;
     }
+    void EnablePlayer(bool enable)
+{
+    audioSource.enabled = enable;
+    playButton.enabled = enable;
+    nextButton.enabled = enable;
+    prevButton.enabled = enable;
+    volumeSlider.enabled = enable;
+}
 
-    public void SelectSong(int index)
+public void TogglePlayer()
+{
+    if (audioSource.enabled)
     {
-        currentSongIndex = index;
-        PlayCurrentSong();
+        audioSource.Stop();
+        EnablePlayer(false);
     }
-
-    public void EnablePlayer(bool enable)
+    else
     {
-        audioSource.enabled = enable;
-        volumeSlider.enabled = enable;
-        playButton.enabled = enable;
-        nextButton.enabled = enable;
-        prevButton.enabled = enable;
+        EnablePlayer(true);
     }
+}
 }
