@@ -1,106 +1,118 @@
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
-using System.IO;
-using System.Collections.Generic;
 
 public class MusicPlayer : MonoBehaviour
 {
-    public Text songTitle;
+    public AudioSource audioSource;
+    public Text musicTitle;
     public Slider volumeSlider;
     public Button playButton;
     public Button nextButton;
     public Button prevButton;
     public Button updateButton;
-    public AudioSource audioSource;
 
-    private List<string> musicList = new List<string>();
-    private int currentSongIndex = -1;
+    private List<string> musicList;
+    private int currentSongIndex = 0;
+    private bool isPlaying = false;
 
     void Start()
     {
-        // Create the "My music" folder if it doesn't exist
-        if (!Directory.Exists(Application.persistentDataPath + "/My music"))
-        {
-            Directory.CreateDirectory(Application.persistentDataPath + "/My music");
-        }
-
-        // Find all music files in the "My music" folder
-        string[] filePaths = Directory.GetFiles(Application.persistentDataPath + "/My music", "*.mp3");
-
-        // Add the music files to the list
-        foreach (string filePath in filePaths)
-        {
-            musicList.Add(filePath);
-        }
-
-        // Set the initial volume and play the first song in the list
-        audioSource.volume = volumeSlider.value;
-        PlaySong(0);
+        musicList = new List<string>();
+        volumeSlider.onValueChanged.AddListener(delegate { OnVolumeChange(); });
+        playButton.onClick.AddListener(delegate { OnPlayButtonClick(); });
+        nextButton.onClick.AddListener(delegate { OnNextButtonClick(); });
+        prevButton.onClick.AddListener(delegate { OnPrevButtonClick(); });
+        updateButton.onClick.AddListener(delegate { OnUpdateButtonClick(); });
+        OnUpdateButtonClick();
     }
 
-    void Update()
+    private void OnPlayButtonClick()
     {
-        // Update the volume as the slider changes
-        audioSource.volume = volumeSlider.value;
+        if (musicList.Count > 0)
+        {
+            if (!isPlaying)
+            {
+                isPlaying = true;
+                audioSource.Play();
+                playButton.GetComponentInChildren<Text>().text = "Pause";
+            }
+            else
+            {
+                isPlaying = false;
+                audioSource.Pause();
+                playButton.GetComponentInChildren<Text>().text = "Play";
+            }
+        }
     }
 
-    public void PlayPause()
+    private void OnNextButtonClick()
     {
-        if (audioSource.isPlaying)
+        if (musicList.Count > 0)
         {
-            audioSource.Pause();
-            playButton.GetComponentInChildren<Text>().text = "Play";
+            currentSongIndex = (currentSongIndex + 1) % musicList.Count;
+            PlayCurrentSong();
+        }
+    }
+
+    private void OnPrevButtonClick()
+    {
+        if (musicList.Count > 0)
+        {
+            currentSongIndex--;
+            if (currentSongIndex < 0)
+            {
+                currentSongIndex = musicList.Count - 1;
+            }
+            PlayCurrentSong();
+        }
+    }
+
+    private void OnUpdateButtonClick()
+    {
+        string path = Application.dataPath + "/My music";
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+        DirectoryInfo directoryInfo = new DirectoryInfo(path);
+        FileInfo[] files = directoryInfo.GetFiles();
+        musicList.Clear();
+        foreach (FileInfo file in files)
+        {
+            if (file.Extension.ToLower() == ".mp3" || file.Extension.ToLower() == ".wav")
+            {
+                musicList.Add(file.FullName);
+            }
+        }
+        if (musicList.Count > 0)
+        {
+            currentSongIndex = 0;
+            PlayCurrentSong();
         }
         else
         {
-            audioSource.Play();
-            playButton.GetComponentInChildren<Text>().text = "Pause";
+            musicTitle.text = "No music found";
+            audioSource.Stop();
+            isPlaying = false;
+            playButton.GetComponentInChildren<Text>().text = "Play";
         }
     }
 
-    public void NextSong()
+    private void OnVolumeChange()
     {
-        if (currentSongIndex < musicList.Count - 1)
-        {
-            currentSongIndex++;
-            PlaySong(currentSongIndex);
-        }
+        audioSource.volume = volumeSlider.value;
     }
 
-    public void PrevSong()
+    private void PlayCurrentSong()
     {
-        if (currentSongIndex > 0)
-        {
-            currentSongIndex--;
-            PlaySong(currentSongIndex);
-        }
-    }
-
-    public void UpdateMusic()
-    {
-        // Clear the current music list
-        musicList.Clear();
-
-        // Find all music files in the "My music" folder
-        string[] filePaths = Directory.GetFiles(Application.persistentDataPath + "/My music", "*.mp3");
-
-        // Add the music files to the list
-        foreach (string filePath in filePaths)
-        {
-            musicList.Add(filePath);
-        }
-    }
-
-    private void PlaySong(int index)
-    {
-        // Stop the current song and update the song title
+        string currentSong = musicList[currentSongIndex];
         audioSource.Stop();
-        currentSongIndex = index;
-        songTitle.text = Path.GetFileNameWithoutExtension(musicList[currentSongIndex]);
-
-        // Play the new song
-        audioSource.clip = NAudioPlayer.FromMp3Data(File.ReadAllBytes(musicList[currentSongIndex]));
+        audioSource.clip = NAudioPlayer.FromMp3Data(File.ReadAllBytes(currentSong));
+        musicTitle.text = Path.GetFileNameWithoutExtension(currentSong);
         audioSource.Play();
+        isPlaying = true;
         playButton.GetComponentInChildren<Text>().text = "Pause";
     }
 }
