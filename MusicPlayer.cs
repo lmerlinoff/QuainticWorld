@@ -1,21 +1,27 @@
+using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
+using System.IO;
 
 public class MusicPlayer : MonoBehaviour
 {
-    public AudioSource audioSource;
-    public Text musicTitle;
-    public Slider volumeSlider;
     public Button playButton;
     public Button nextButton;
     public Button prevButton;
     public Button updateButton;
+    public Slider volumeSlider;
+    public Text songTitle;
 
-    private List<string> musicList;
-    private int currentSongIndex = 0;
-    private bool isPlaying = false;
+    private AudioSource audioSource;
+    private List<string> songList = new List<string>();
+    private int currentSong = 0;
+    private bool isPaused = true;
+    private bool isFirstSong = true;
+    private float defaultVolume = 0.5f;
+    private string musicFolderPath;
+    private string[] musicFormats = new string[] { "*.mp3", "*.wav" };
+}
 
     void Start()
     {
@@ -109,7 +115,7 @@ public class MusicPlayer : MonoBehaviour
     {
         string currentSong = musicList[currentSongIndex];
         audioSource.Stop();
-        audioSource.clip = NAudioPlayer.FromMp3Data(File.ReadAllBytes(currentSong));
+        audioSource.clip = (AudioClip)Resources.Load("My music/" + songList[currentSong]);
         musicTitle.text = Path.GetFileNameWithoutExtension(currentSong);
         audioSource.Play();
         isPlaying = true;
