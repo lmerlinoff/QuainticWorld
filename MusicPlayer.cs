@@ -99,7 +99,7 @@ public class MusicPlayer : MonoBehaviour
         songTitle.text = Path.GetFileNameWithoutExtension(musicList[currentSongIndex]);
 
         // Play the new song
-        audioSource.clip = audioSource.FromMp3Data(File.ReadAllBytes(musicList[currentSongIndex]));
+        audioSource.clip = NAudioPlayer.FromMp3Data(File.ReadAllBytes(musicList[currentSongIndex]));
         audioSource.Play();
         playButton.GetComponentInChildren<Text>().text = "Pause";
     }
