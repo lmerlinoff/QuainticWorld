@@ -1,141 +1,106 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using System.IO;
 using UnityEngine.UI;
+using System.IO;
+using System.Collections.Generic;
 
 public class MusicPlayer : MonoBehaviour
 {
-    public AudioSource audioSource;
-    public List<string> musicFiles = new List<string>();
-    public int currentTrack = 0;
-
+    public Text songTitle;
+    public Slider volumeSlider;
     public Button playButton;
-    public Button stopButton;
     public Button nextButton;
     public Button prevButton;
-    public Button refreshButton;
+    public Button updateButton;
+    public AudioSource audioSource;
+
+    private List<string> musicList = new List<string>();
+    private int currentSongIndex = -1;
 
     void Start()
     {
-        audioSource = GetComponent<AudioSource>();
-
-        // Проверяем наличие папки Music и создаем ее, если она не существует
-        string musicPath = Application.dataPath + "/Music";
-        if (!Directory.Exists(musicPath))
+        // Create the "My music" folder if it doesn't exist
+        if (!Directory.Exists(Application.persistentDataPath + "/My music"))
         {
-            Directory.CreateDirectory(musicPath);
+            Directory.CreateDirectory(Application.persistentDataPath + "/My music");
         }
 
-        // Загружаем файлы в папке Music и добавляем их в список музыкальных файлов
-        string[] files = Directory.GetFiles(musicPath, "*.mp3");
-        foreach (string file in files)
+        // Find all music files in the "My music" folder
+        string[] filePaths = Directory.GetFiles(Application.persistentDataPath + "/My music", "*.mp3");
+
+        // Add the music files to the list
+        foreach (string filePath in filePaths)
         {
-            musicFiles.Add(file);
+            musicList.Add(filePath);
         }
 
-        files = Directory.GetFiles(musicPath, "*.wav");
-        foreach (string file in files)
-        {
-            musicFiles.Add(file);
-        }
-
-        // Проверяем наличие музыкальных файлов
-        if (musicFiles.Count == 0)
-        {
-            Debug.LogWarning("No music files found in " + musicPath);
-            return;
-        }
-
-        // Воспроизводим первый файл
-        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
-        audioSource.Play();
-
-        // Добавляем обработчики событий кнопок
-        playButton.onClick.AddListener(PlayTrack);
-        stopButton.onClick.AddListener(StopTrack);
-        nextButton.onClick.AddListener(NextTrack);
-        prevButton.onClick.AddListener(PrevTrack);
-        refreshButton.onClick.AddListener(RefreshTracks);
+        // Set the initial volume and play the first song in the list
+        audioSource.volume = volumeSlider.value;
+        PlaySong(0);
     }
 
-    void PlayTrack()
+    void Update()
     {
-        if (!audioSource.isPlaying)
-        {
-            audioSource.Play();
-        }
+        // Update the volume as the slider changes
+        audioSource.volume = volumeSlider.value;
     }
 
-    void StopTrack()
+    public void PlayPause()
     {
         if (audioSource.isPlaying)
         {
-            audioSource.Stop();
+            audioSource.Pause();
+            playButton.GetComponentInChildren<Text>().text = "Play";
+        }
+        else
+        {
+            audioSource.Play();
+            playButton.GetComponentInChildren<Text>().text = "Pause";
         }
     }
 
-    void NextTrack()
+    public void NextSong()
     {
-        currentTrack++;
-        if (currentTrack >= musicFiles.Count)
+        if (currentSongIndex < musicList.Count - 1)
         {
-            currentTrack = 0;
+            currentSongIndex++;
+            PlaySong(currentSongIndex);
         }
+    }
 
-        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
+    public void PrevSong()
+    {
+        if (currentSongIndex > 0)
+        {
+            currentSongIndex--;
+            PlaySong(currentSongIndex);
+        }
+    }
+
+    public void UpdateMusic()
+    {
+        // Clear the current music list
+        musicList.Clear();
+
+        // Find all music files in the "My music" folder
+        string[] filePaths = Directory.GetFiles(Application.persistentDataPath + "/My music", "*.mp3");
+
+        // Add the music files to the list
+        foreach (string filePath in filePaths)
+        {
+            musicList.Add(filePath);
+        }
+    }
+
+    private void PlaySong(int index)
+    {
+        // Stop the current song and update the song title
+        audioSource.Stop();
+        currentSongIndex = index;
+        songTitle.text = Path.GetFileNameWithoutExtension(musicList[currentSongIndex]);
+
+        // Play the new song
+        audioSource.clip = audioSource.FromMp3Data(File.ReadAllBytes(musicList[currentSongIndex]));
         audioSource.Play();
+        playButton.GetComponentInChildren<Text>().text = "Pause";
     }
-
-    void PrevTrack()
-    {
-        currentTrack--;
-        if (currentTrack < 0)
-        {
-            currentTrack = musicFiles.Count - 1;
-        }
-
-        audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
-        audioSource.Play();
-    }
-
-    void RefreshTracks()
-    {
-        musicFiles.Clear();
-
-        // Загружаем файлы в папке Music и добавляем их в список музыкальных файлов
-        string musicPath = Application.dataPath + "/Music";
-        string[] files = Directory.GetFiles(musicPath, "*.mp3");
-        foreach (string file in files)
-        {
-            musicFiles.Add(file);
-        }
-
-        files = Directory.GetFiles(musicPath, "*.wav");
-        foreach (string file in files)
-        {
-            musicFiles.Add(file);
-        }
-
-        // Проверяем наличие музыкальных файлов
-            if (musicFiles.Count == 0)
-    {
-        Debug.LogWarning("No music files found in " + musicPath);
-        return;
-    }
-
-    currentTrack = 0;
-    audioSource.clip = GetAudioClip(musicFiles[currentTrack]);
-    audioSource.Play();
-}
-
-AudioClip GetAudioClip(string filePath)
-{
-    // Загружаем аудио-клип из файла
-    string audioPath = "file://" + filePath;
-    WWW audioLoader = new WWW(audioPath);
-    while (!audioLoader.isDone) { }
-
-    return audioLoader.GetAudioClip();
-}
 }
